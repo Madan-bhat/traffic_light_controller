@@ -2,7 +2,7 @@
 ; Ports:
 ;   P1 = Lane1 / Lane2 lights (+ P1.7 pedestrian)
 ;   P0 = Lane3 / Lane4 lights
-;   P2.0,P2.2,P2.4,P2.6 = vehicle sensors (active high)
+;   P2.0,P2.2,P2.4,P2.6 = vehicle sensors (ACTIVE LOW: detect = 0)
 ;   P3.0–P3.3 = emergency (active high)
 ;   P3.7 = pedestrian request (active high)
 ; RAM 30h = current lane ID (must NOT use R7 — delays destroy R7)
@@ -12,13 +12,11 @@ Org 0000h
 
 Lane1:
 	mov 30h, #01h			; save lane ID (delays use R7 as counter)
-	jnb P2.0, Lane2			; skip if no traffic at Lane 1
+	jb P2.0, Lane2			; skip if idle (high = no traffic)
 	mov p0, #09h			; L3,L4 red
 	mov p1, #0ch			; L1 green, L2 red
 
-	mov a, p2
-	anl a, #01h			; density check: P2.0 only
-	cjne a, #01h, rare1
+	jb P2.0, rare1			; densify only if still detecting (low)
 	acall delaye			; +10 s if vehicle present
 rare1:
 	acall delayg			; 20 s green
@@ -29,13 +27,11 @@ rare1:
 
 Lane2:
 	mov 30h, #02h
-	jnb P2.2, Lane3			; skip if no traffic at Lane 2
+	jb P2.2, Lane3			; skip if idle (high = no traffic)
 	mov p0, #09h			; keep L3,L4 red
 	mov p1, #21h			; L2 green, L1 red
 
-	mov a, p2
-	anl a, #04h			; density check: P2.2 only
-	cjne a, #04h, rare2
+	jb P2.2, rare2
 	acall delaye
 rare2:
 	acall delayg
@@ -46,13 +42,11 @@ rare2:
 
 Lane3:
 	mov 30h, #03h
-	jnb P2.4, Lane4			; skip if no traffic at Lane 3
+	jb P2.4, Lane4			; skip if idle (high = no traffic)
 	mov p1, #09h			; keep L1,L2 red
 	mov p0, #0ch			; L3 green, L4 red
 
-	mov a, p2
-	anl a, #10h			; density check: P2.4 only
-	cjne a, #10h, rare3
+	jb P2.4, rare3
 	acall delaye
 rare3:
 	acall delayg
@@ -63,13 +57,11 @@ rare3:
 
 Lane4:
 	mov 30h, #04h
-	jnb P2.6, Ped			; skip if no traffic at Lane 4
+	jb P2.6, Ped			; skip if idle (high = no traffic)
 	mov p1, #09h
 	mov p0, #21h			; L4 green, L3 red
 
-	mov a, p2
-	anl a, #40h			; density check: P2.6 only
-	cjne a, #40h, rare4
+	jb P2.6, rare4
 	acall delaye
 rare4:
 	acall delayg
